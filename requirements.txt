@@ -1,0 +1,9 @@
+pandas
+numpy
+praw
+pprintpp
+requests
+scikit-learn
+# sentence_transformers
+# umap
+# transformers 
