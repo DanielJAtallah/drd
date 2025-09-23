@@ -1,9 +1,10 @@
 pandas
 numpy
 praw
+dotenv
 pprintpp
 requests
 scikit-learn
-# sentence_transformers
-# umap
-# transformers 
+scipy
+jupyter
+ipykernel
