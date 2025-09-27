@@ -4,7 +4,6 @@ import praw
 from pprint import pprint
 import requests
 import os
-import csv
 import zipfile
 from io import BytesIO
 from scipy import spatial
@@ -112,17 +111,12 @@ elif glove_ingest.lower() == "y":
     os.remove(glove_vector_path)
     os.rmdir(unzip_path)
 
-# collect some subreddits
-out_subs_csv = "data/collected_subs.csv"
+# collect some subreddit candidates
+out_subs_csv = "data/sub_candidates.csv"
 cols = ["sub_id", "sub_name", "sub_desc"]
-if not os.path.exists(out_subs_csv):
-    with open(out_subs_csv, "w", newline="", encoding="utf8") as f:
-        writer = csv.DictWriter(f, fieldnames=out_subs_csv)
-        writer.writeheader()
 
-
-def append_row_csv(row: dict):
-    with open(out_subs_csv, "a", newline="", encoding="utf8") as f:
-        writer = csv.DictWriter(f, fieldnames=out_subs_csv)
-        writer.writerow(row)
-        f.flush()
+# Example usage (recommended for loops):
+# writer = BufferedCSVWriter(out_subs_csv, cols, batch_size=500)
+# for i, row in enumerate(listings):
+#     writer.append(row)
+# writer.close()
