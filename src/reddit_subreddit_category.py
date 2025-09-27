@@ -9,6 +9,7 @@ import time
 import re
 import string
 import os
+import csv
 import zipfile
 from io import BytesIO
 from scipy import spatial
@@ -49,31 +50,51 @@ if auth_response.status_code == 200:
   TOKEN = auth_response.json()['access_token']
 
 # find extra reddit search terms using GLoVe
-glove_zip_url = 'https://nlp.stanford.edu/data/wordvecs/glove.2024.wikigiga.50d.zip'
-glove_zip_response = requests.get(glove_zip_url)
-glove_zip = zipfile.ZipFile(BytesIO(glove_zip_response.content))
-unzip_path = './data/glove/'
-glove_zip.extractall(unzip_path)
-del glove_zip_response, glove_zip
-glove_vector_path = unzip_path + os.listdir(unzip_path)[0]
+search_terms = ['nutrition', 'diet', 'gut', 'digestion', 'food', 'supplement', 'health', 'cibo',
+                'microbiome', 'probiotic', 'prebiotic', 'plant-based', 'fiber', 'vitamin', 'autoimmune'
+                'metabolism', 'intolerance', 'ibs', 'celiac', 'allergy', 'inflammation', 'bloating']
+glove_ingest = input("Do you want to download and ingest GLoVe vectors? (y/n): ")
+if glove_ingest.lower() != 'y':
+   print("Skipping GLoVe ingestion.")
+elif glove_ingest.lower() == 'y':
+   print("Downloading and ingesting GLoVe vectors...")
+   glove_zip_url = 'https://nlp.stanford.edu/data/wordvecs/glove.2024.wikigiga.50d.zip'
+   glove_zip_response = requests.get(glove_zip_url)
+   glove_zip = zipfile.ZipFile(BytesIO(glove_zip_response.content))
+   unzip_path = './data/glove/'
+   glove_zip.extractall(unzip_path)
+   del glove_zip_response, glove_zip
+   glove_vector_path = unzip_path + os.listdir(unzip_path)[0]
 
-# load glove vectors & find search terms
-embeddings_dict = {}
-with open(glove_vector_path, 'r') as f:
-   for line in f:
-    values = line.split(' ')
-    word = values[0]
-    vector = np.asarray(values[1:], dtype = 'float32')
-    embeddings_dict[word] = vector
-# add search terms if needed and use below code for ideas
-search_terms = ['nutrition', 'diet', 'gut', 'digestion', 'food', 'supplement', 'vegetarian', 'health']
-def find_closest_embeddings(embedding):
-   return sorted(embeddings_dict.keys(), key=lambda word: spatial.distance.euclidean(embeddings_dict[word], embedding))
-for term in search_terms:
-   closest_embeddings = find_closest_embeddings(embeddings_dict[term])[1:10]
-   print(f"Closest terms to {term}:")
-   print(closest_embeddings)
+   # load glove vectors & find search terms
+   embeddings_dict = {}
+   with open(glove_vector_path, 'r') as f:
+      for line in f:
+         values = line.split(' ')
+         word = values[0]
+         vector = np.asarray(values[1:], dtype = 'float32')
+         embeddings_dict[word] = vector
+   # add search terms if needed and use below code for ideas
+   def find_closest_embeddings(embedding):
+      return sorted(embeddings_dict.keys(), key=lambda word: spatial.distance.euclidean(embeddings_dict[word], embedding))
+   for term in search_terms:
+      closest_embeddings = find_closest_embeddings(embeddings_dict[term])[1:10]
+      print(f"Closest terms to {term}:")
+      print(closest_embeddings)
 
-# delete glove vectors to free space
-os.remove(glove_vector_path)
-os.rmdir(unzip_path)
+   # delete glove vectors to free space
+   os.remove(glove_vector_path)
+   os.rmdir(unzip_path)
+
+# collect some subreddits
+out_subs_csv = 'data/collected_subs.csv'
+cols = ['sub_id', 'sub_name', 'sub_desc']
+if not os.path.exists(out_subs_csv):
+    with open(out_subs_csv, 'w', newline = '', encoding = 'utf8') as f:
+        writer = csv.DictWriter(f, fieldnames = out_subs_csv)
+        writer.writeheader()
+def append_row_csv(row: dict):
+    with open(out_subs_csv, 'a', newline = '', encoding = 'utf8') as f:
+        writer = csv.DictWriter(f, fieldnames = out_subs_csv)
+        writer.writerow(row)
+        f.flush()
