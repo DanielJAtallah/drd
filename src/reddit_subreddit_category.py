@@ -1,13 +1,10 @@
 # api & text processing deps
-import numpy as np
 import praw
 from pprint import pprint
 import requests
 import os
-import zipfile
-from io import BytesIO
-from scipy import spatial
 from dotenv import load_dotenv
+from search_term_explorer import NewSearchTermExplorer
 
 # initialize env vars from .envrc
 load_dotenv(os.path.abspath("..") + "/.envrc", verbose=False)
@@ -71,45 +68,18 @@ search_terms = [
     "inflammation",
     "bloating",
 ]
-glove_ingest = input("Do you want to download and ingest GLoVe vectors? (y/n): ")
+glove_ingest = input(
+    "Do you want to explore new search terms with GLoVe vectors? (y/n): "
+)
 if glove_ingest.lower() != "y":
     print("Skipping GLoVe ingestion.")
 elif glove_ingest.lower() == "y":
-    print("Downloading and ingesting GLoVe vectors...")
-    glove_zip_url = "https://nlp.stanford.edu/data/wordvecs/glove.2024.wikigiga.50d.zip"
-    glove_zip_response = requests.get(glove_zip_url)
-    glove_zip = zipfile.ZipFile(BytesIO(glove_zip_response.content))
-    unzip_path = "./data/glove/"
-    glove_zip.extractall(unzip_path)
-    del glove_zip_response, glove_zip
-    glove_vector_path = unzip_path + os.listdir(unzip_path)[0]
-
-    # load glove vectors & find search terms
-    embeddings_dict = {}
-    with open(glove_vector_path, "r") as f:
-        for line in f:
-            values = line.split(" ")
-            word = values[0]
-            vector = np.asarray(values[1:], dtype="float32")
-            embeddings_dict[word] = vector
-
-    # add search terms if needed and use below code for ideas
-    def find_closest_embeddings(embedding):
-        return sorted(
-            embeddings_dict.keys(),
-            key=lambda word: spatial.distance.euclidean(
-                embeddings_dict[word], embedding
-            ),
-        )
-
-    for term in search_terms:
-        closest_embeddings = find_closest_embeddings(embeddings_dict[term])[1:10]
-        print(f"Closest terms to {term}:")
-        print(closest_embeddings)
-
-    # delete glove vectors to free space
-    os.remove(glove_vector_path)
-    os.rmdir(unzip_path)
+    print("Downloading and ingesting word vectors...")
+    NewSearchTermExplorer(
+        sample_terms=search_terms,
+        vector_url="https://nlp.stanford.edu/data/wordvecs/glove.2024.wikigiga.50d.zip",
+        unzip_path="./data/glove/",
+    ).explore()
 
 # collect some subreddit candidates
 out_subs_csv = "data/sub_candidates.csv"
