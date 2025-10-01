@@ -21,3 +21,6 @@
 
 # ignoring data files for now
 data/
+
+# ignore pycache
+src/__pycache__/
