@@ -1,15 +1,14 @@
 import praw
 from datetime import datetime as dt, timedelta as td
+from data_writer import ensure_csv_header
+from transformers import pipeline
+from collections import Counter
 
 ### NOTES
-# 1) Call subreddits by search term
+# 1) Call subreddits by search term - DONE
 # 2) Determine if subs are active - DONE
-# 3) Search active subreddits for related subreddits
-# 4) Use transformer to classify active subreddits by topic
-# 5) Use data writer class to save results
-#
-# This function will be called by the main driver script
-# iteravely for each search term.
+# 3) Use transformer to classify active subreddits by topic - IN PROGRESS
+# 4) Script that iterates over sub_search sub_list - TODO
 
 
 class CandidateReviewer:
@@ -20,15 +19,45 @@ class CandidateReviewer:
         reddit: praw.reddit.Reddit,
         search_term: str,
         current_time: dt = dt.now(),
+        sub_name: bool = False,
+        candidate_path: str = "data/sub_candidates.csv",
+        fieldnames: list[str] = [
+            "sub_id",
+            "sub_name",
+            "sub_desc",
+            "topic_group",
+            "activity_level",
+        ],
+        topic_labels: list[str] = [
+            "general nutrition",
+            "fitness",
+            "gut health",
+            "other",
+        ],
+        model_name: str = "facebook/bart-large-mnli",
     ):
         self.reddit = reddit
         self.search_term = search_term
         self.current_time = current_time
+        self.sub_name = sub_name
+        self.candidate_path = candidate_path
+        self.fieldnames = fieldnames
+        self.topic_labels = topic_labels
+        # initialize current candidate list if not exists
+        ensure_csv_header(self.candidate_path, self.fieldnames)
+        # initialize transformer pipeline for topic classification
+        self.model_name = model_name
+        self.classifier = pipeline("zero-shot-classification", model=self.model_name)
 
     def sub_search(self, sub_limit=25):
         """Search for subreddits matching the search term."""
-        sub_generator = self.reddit.subreddits.search(self.search_term, limit=sub_limit)
-        return sub_generator
+        if self.sub_name:
+            sub_list = [self.reddit.subreddit(self.search_term)]
+        elif self.sub_name is False:
+            sub_list = list(
+                self.reddit.subreddits.search(self.search_term, limit=sub_limit)
+            )
+        return sub_list
 
     def is_active(
         self,
@@ -84,3 +113,25 @@ class CandidateReviewer:
                 return "potentially active"
             case _:
                 return "inactive"
+
+    def classify_topic(self, subreddit) -> str:
+        """Classify subreddit topic using a zero-shot classifier."""
+        top_posts = subreddit.top(time_filter="all")
+        class_output = []
+        for post in top_posts:
+            try:
+                result = self.classifier(post.selftext, self.topic_labels)
+                result = result["labels"][0]
+                class_output.append(result)
+                if len(class_output) >= 10:
+                    # see if there was a tie
+                    counts = Counter(class_output)
+                    if (
+                        len(counts) > 1
+                        and counts.most_common(2)[0][1] != counts.most_common(2)[1][1]
+                    ):
+                        return counts.most_common(1)[0][0]
+                    elif len(counts) == 1:
+                        return counts.most_common(1)[0][0]
+            except ValueError:
+                continue

@@ -9,3 +9,8 @@ scipy
 jupyter
 ipykernel
 pre-commit
+transformers
+torch
+protobuf
+tiktoken
+sentencepiece

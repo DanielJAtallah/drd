@@ -3,6 +3,13 @@ import csv
 from typing import List, Dict
 
 
+def ensure_csv_header(path: str, fieldnames: List[str], encoding: str = "utf8"):
+    """Create the file with header if it does not exist."""
+    if not os.path.exists(path):
+        with open(path, "w", newline="", encoding=encoding) as f:
+            csv.DictWriter(f, fieldnames=fieldnames).writeheader()
+
+
 class BufferedCSVWriter:
     """Append-only buffered CSV writer.
 
@@ -30,9 +37,7 @@ class BufferedCSVWriter:
         self.buffer: List[Dict] = []
 
         # ensure header exists
-        if not os.path.exists(self.path):
-            with open(self.path, "w", newline="", encoding=self.encoding) as f:
-                csv.DictWriter(f, fieldnames=self.fieldnames).writeheader()
+        ensure_csv_header(self.path, self.fieldnames, self.encoding)
 
         # open file for append once
         self._file = open(self.path, "a", newline="", encoding=self.encoding)
