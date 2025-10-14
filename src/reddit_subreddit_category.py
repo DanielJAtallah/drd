@@ -5,6 +5,8 @@ import requests
 import os
 from dotenv import load_dotenv
 from search_term_explorer import NewSearchTermExplorer
+from candidate_reviewer import CandidateReviewer
+from tqdm import tqdm
 
 # initialize env vars from .envrc
 load_dotenv(os.path.abspath("..") + "/.envrc", verbose=False)
@@ -83,10 +85,38 @@ elif glove_ingest.lower() == "y":
 
 # collect some subreddit candidates
 out_subs_csv = "data/sub_candidates.csv"
-cols = ["sub_id", "sub_name", "sub_desc"]
+cols = [
+    "sub_id",
+    "sub_name",
+    "sub_desc",
+    "topic_group",
+    "activity_level",
+]
+topic_labels = [
+    "nutrition",
+    "fitness",
+    "gut",
+    "digestion",
+    "other",
+]
 
-# Example usage (recommended for loops):
-# writer = BufferedCSVWriter(out_subs_csv, cols, batch_size=500)
-# for i, row in enumerate(listings):
-#     writer.append(row)
-# writer.close()
+# run CandidateReviewer on list of search terms
+for term in tqdm(search_terms):
+    print(f"Reviewing candidates for search term: {term}")
+    reviewer = CandidateReviewer(
+        reddit=reddit,
+        search_term=term,
+        sub_name=False,
+        fieldnames=cols,
+        topic_labels=topic_labels,
+        sub_limit=25,
+        model_name="facebook/bart-large-mnli",
+        post_limit=100,
+        active_post_days=50,
+        recent_post_days=7,
+        avg_comment_cnt_limit=3,
+        unique_poster_cnt_limit=30,
+        num_subscribers_limit=1000,
+        writer_batch_size=500,
+    )
+    reviewer.execute()

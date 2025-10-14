@@ -23,9 +23,10 @@ class CandidateReviewer:
             "activity_level",
         ],
         topic_labels: list[str] = [
-            "general nutrition",
+            "nutrition",
             "fitness",
-            "gut health",
+            "gut",
+            "digestion",
             "other",
         ],
         sub_limit: int = 25,
