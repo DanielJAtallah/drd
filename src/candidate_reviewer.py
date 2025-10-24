@@ -2,7 +2,6 @@ import praw
 from datetime import datetime as dt, timedelta as td
 from data_writer import ensure_csv_header, BufferedCSVWriter
 from transformers import pipeline
-from collections import Counter
 
 
 class CandidateReviewer:
@@ -35,7 +34,7 @@ class CandidateReviewer:
         active_post_days: int = 50,
         recent_post_days: int = 7,
         avg_comment_cnt_limit: int = 3,
-        unique_poster_cnt_limit: int = 30,
+        unique_poster_pct: int = 0.25,
         num_subscribers_limit: int = 1000,
         writer_batch_size: int = 500,
     ):
@@ -57,7 +56,7 @@ class CandidateReviewer:
         self.active_post_days = active_post_days
         self.recent_post_days = recent_post_days
         self.avg_comment_cnt_limit = avg_comment_cnt_limit
-        self.unique_poster_cnt_limit = unique_poster_cnt_limit
+        self.unique_poster_pct = unique_poster_pct
         self.num_subscribers_limit = num_subscribers_limit
         self.writer_batch_size = writer_batch_size
 
@@ -85,7 +84,7 @@ class CandidateReviewer:
         # check that we get about x posts in the last y days
         post_freq_ind = (
             1
-            if (most_recent_post_ts - first_post_ts <= td(days=self.active_post_days))
+            if (self.current_time - first_post_ts <= td(days=self.active_post_days))
             else 0
         )
         # check that most recent post is within last 7 days
@@ -101,7 +100,7 @@ class CandidateReviewer:
         comment_freq_ind = 1 if (avg_num_comments >= self.avg_comment_cnt_limit) else 0
         # check that there are some number of unique posters
         unique_poster_ind = (
-            1 if (unique_poster_cnt >= self.unique_poster_cnt_limit) else 0
+            1 if (unique_poster_cnt >= self.unique_poster_pct * self.post_limit) else 0
         )
         # check that there are some number of subscribers
         subscriber_ind = 1 if (num_subscribers >= self.num_subscribers_limit) else 0
@@ -122,25 +121,30 @@ class CandidateReviewer:
             case _:
                 return "inactive"
 
-    def classify_topic(self, subreddit) -> str:
+    def classify_topic(self, subreddit) -> dict:
         """Classify subreddit topic using a zero-shot classifier."""
         top_posts = subreddit.top(time_filter="all")
         class_output = []
+        print(f"Classifying topic for subreddit: {subreddit.display_name}")
         for post in top_posts:
             try:
-                result = self.classifier(post.selftext, self.topic_labels)
-                result = result["labels"][0]
-                class_output.append(result)
-                if len(class_output) >= 10:
-                    # see if there was a tie
-                    counts = Counter(class_output)
-                    if (
-                        len(counts) > 1
-                        and counts.most_common(2)[0][1] != counts.most_common(2)[1][1]
-                    ):
-                        return counts.most_common(1)[0][0]
-                    elif len(counts) == 1:
-                        return counts.most_common(1)[0][0]
+                if len(post.selftext) < 10:
+                    continue
+                elif len(post.selftext) >= 10:
+                    result = self.classifier(
+                        post.selftext, self.topic_labels, multi_label=True
+                    )
+                    result = dict(zip(result["labels"], result["scores"]))
+                    print(result)
+                    class_output.append(result)
+                    if len(class_output) >= 30:
+                        # see if there was a tie
+                        counts = {}
+                        for label in self.topic_labels:
+                            vals = [i[label] for i in class_output]
+                            counts[label] = sum(vals) / len(vals)
+                        print(f"Average classification scores: {counts}")
+                        return counts
             except ValueError:
                 continue
 
@@ -151,18 +155,21 @@ class CandidateReviewer:
         )
         sub_list = self.sub_search()
         for sub in sub_list:
-            sub_id = sub.id
-            sub_name = sub.display_name
-            sub_desc = sub.public_description
-            topic_group = self.classify_topic(sub)
-            activity_level = self.is_active(sub)
-            writer.append(
-                {
-                    "sub_id": sub_id,
-                    "sub_name": sub_name,
-                    "sub_desc": sub_desc,
-                    "topic_group": topic_group,
-                    "activity_level": activity_level,
-                }
-            )
+            try:
+                sub_id = sub.id
+                sub_name = sub.display_name
+                sub_desc = sub.public_description
+                topic_group = self.classify_topic(sub)
+                activity_level = self.is_active(sub)
+                writer.append(
+                    {
+                        "sub_id": sub_id,
+                        "sub_name": sub_name,
+                        "sub_desc": sub_desc,
+                        "topic_group": topic_group,
+                        "activity_level": activity_level,
+                    }
+                )
+            except IndexError as e:
+                print(f"Error processing subreddit {sub.display_name}: {e}")
         writer.close()

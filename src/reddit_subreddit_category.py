@@ -25,6 +25,7 @@ reddit = praw.Reddit(
     client_secret=APP_SECRET,
     user_agent=USERNAME,
     check_for_async=False,
+    ratelimit_seconds=300,
 )
 
 # requests auth
@@ -92,13 +93,7 @@ cols = [
     "topic_group",
     "activity_level",
 ]
-topic_labels = [
-    "nutrition",
-    "fitness",
-    "gut",
-    "digestion",
-    "other",
-]
+topic_labels = ["nutrition", "gut health", "digestion"]
 
 # run CandidateReviewer on list of search terms
 for term in tqdm(search_terms):
@@ -109,13 +104,13 @@ for term in tqdm(search_terms):
         sub_name=False,
         fieldnames=cols,
         topic_labels=topic_labels,
-        sub_limit=25,
+        sub_limit=5,
         model_name="facebook/bart-large-mnli",
         post_limit=100,
         active_post_days=50,
         recent_post_days=7,
         avg_comment_cnt_limit=3,
-        unique_poster_cnt_limit=30,
+        unique_poster_pct=0.25,
         num_subscribers_limit=1000,
         writer_batch_size=500,
     )
