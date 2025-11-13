@@ -24,3 +24,5 @@ data/
 
 # ignore pycache
 src/__pycache__/
+
+.terraform/
