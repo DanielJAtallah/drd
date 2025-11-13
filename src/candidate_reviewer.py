@@ -135,7 +135,6 @@ class CandidateReviewer:
                         post.selftext, self.topic_labels, multi_label=True
                     )
                     result = dict(zip(result["labels"], result["scores"]))
-                    print(result)
                     class_output.append(result)
                     if len(class_output) >= 30:
                         # see if there was a tie
@@ -143,7 +142,6 @@ class CandidateReviewer:
                         for label in self.topic_labels:
                             vals = [i[label] for i in class_output]
                             counts[label] = sum(vals) / len(vals)
-                        print(f"Average classification scores: {counts}")
                         return counts
             except ValueError:
                 continue
@@ -155,21 +153,23 @@ class CandidateReviewer:
         )
         sub_list = self.sub_search()
         for sub in sub_list:
+            sub_id = sub.id
+            sub_name = sub.display_name
+            sub_desc = sub.public_description
             try:
-                sub_id = sub.id
-                sub_name = sub.display_name
-                sub_desc = sub.public_description
                 topic_group = self.classify_topic(sub)
                 activity_level = self.is_active(sub)
-                writer.append(
-                    {
-                        "sub_id": sub_id,
-                        "sub_name": sub_name,
-                        "sub_desc": sub_desc,
-                        "topic_group": topic_group,
-                        "activity_level": activity_level,
-                    }
-                )
             except IndexError as e:
                 print(f"Error processing subreddit {sub.display_name}: {e}")
+                topic_group = {}
+                activity_level = "inactive"
+            writer.append(
+                {
+                    "sub_id": sub_id,
+                    "sub_name": sub_name,
+                    "sub_desc": sub_desc,
+                    "topic_group": topic_group,
+                    "activity_level": activity_level,
+                }
+            )
         writer.close()
