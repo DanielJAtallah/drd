@@ -1,31 +1,32 @@
-name: 'Terraform Infrastructure'
+name: 'Terraform - Dev'
 
 on:
   push:
     branches:
-      - main
+      - develop
     paths:
       - 'terraform/**'
-      - '.github/workflows/terraform.yml'
+      - '.github/workflows/terraform-dev.yml'
   pull_request:
     branches:
-      - main
+      - develop
     paths:
       - 'terraform/**'
-      - '.github/workflows/terraform.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write  # Required for Workload Identity Federation
+  id-token: write
+  pull-requests: write
 
 jobs:
   terraform:
-    name: 'Terraform'
+    name: 'Terraform Dev'
     runs-on: ubuntu-latest
+    environment: development
     defaults:
       run:
-        working-directory: ./terraform
+        working-directory: ./terraform/environments/dev
     
     steps:
     - name: Checkout
@@ -34,8 +35,8 @@ jobs:
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+        workload_identity_provider: ${{ secrets.DEV_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.DEV_SERVICE_ACCOUNT }}
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
@@ -47,7 +48,7 @@ jobs:
 
     - name: Terraform Format Check
       id: fmt
-      run: terraform fmt -check
+      run: terraform fmt -check -recursive
       continue-on-error: true
 
     - name: Terraform Init
@@ -60,7 +61,6 @@ jobs:
 
     - name: Terraform Plan
       id: plan
-      if: github.event_name == 'pull_request'
       run: terraform plan -no-color -input=false
       continue-on-error: true
 
@@ -72,10 +72,11 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-          #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-          #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-          #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+          const output = `#### Terraform Dev Environment 🔧
+          #### Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+          #### Initialization ⚙️\`${{ steps.init.outcome }}\`
+          #### Validation 🤖\`${{ steps.validate.outcome }}\`
+          #### Plan 📖\`${{ steps.plan.outcome }}\`
 
           <details><summary>Show Plan</summary>
 
@@ -85,7 +86,7 @@ jobs:
 
           </details>
 
-          *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+          *Environment: Development | Pushed by: @${{ github.actor }}*`;
 
           github.rest.issues.createComment({
             issue_number: context.issue.number,
@@ -95,5 +96,5 @@ jobs:
           })
 
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false

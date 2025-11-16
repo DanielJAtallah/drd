@@ -1,7 +1,6 @@
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "drd-dev"
 }
 
 variable "region" {
@@ -13,5 +12,4 @@ variable "region" {
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "dev"
 }

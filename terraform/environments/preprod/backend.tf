@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket = "drd-terraform-state"
+    bucket = "drd-preprod-terraform-state"
     prefix = "terraform/state"
   }
 }

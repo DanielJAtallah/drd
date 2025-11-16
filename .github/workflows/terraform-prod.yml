@@ -1,0 +1,66 @@
+name: 'Terraform - Production'
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "apply" to confirm production deployment'
+        required: true
+        default: 'plan'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform:
+    name: 'Terraform Production'
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: ./terraform/environments/prod
+    
+    steps:
+    - name: Verify Confirmation
+      if: github.event.inputs.confirm != 'apply'
+      run: |
+        echo "::error::You must type 'apply' to deploy to production"
+        exit 1
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.PROD_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.PROD_SERVICE_ACCOUNT }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.9.0
+
+    - name: Terraform Format Check
+      id: fmt
+      run: terraform fmt -check -recursive
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color -input=false
+
+    - name: Terraform Apply
+      if: github.event.inputs.confirm == 'apply'
+      run: terraform apply -auto-approve -input=false
