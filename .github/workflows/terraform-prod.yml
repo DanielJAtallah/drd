@@ -23,7 +23,7 @@ jobs:
   terraform:
     name: 'Terraform Production'
     runs-on: ubuntu-latest
-    environment: production  # This triggers the required approval
+    environment: prod  # This triggers the required approval
     defaults:
       run:
         working-directory: ./terraform/environments/prod

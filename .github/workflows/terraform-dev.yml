@@ -23,7 +23,7 @@ jobs:
   terraform:
     name: 'Terraform Dev'
     runs-on: ubuntu-latest
-    environment: development
+    environment: dev
     defaults:
       run:
         working-directory: ./terraform/environments/dev
@@ -86,7 +86,7 @@ jobs:
 
           </details>
 
-          *Environment: Development | Pushed by: @${{ github.actor }}*`;
+          *Environment: dev | Pushed by: @${{ github.actor }}*`;
 
           github.rest.issues.createComment({
             issue_number: context.issue.number,
