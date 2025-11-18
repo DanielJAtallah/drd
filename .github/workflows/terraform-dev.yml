@@ -3,13 +3,13 @@ name: 'Terraform - Dev'
 on:
   push:
     branches:
-      - develop
+      - dev
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform-dev.yml'
   pull_request:
     branches:
-      - develop
+      - dev
     paths:
       - 'terraform/**'
   workflow_dispatch:
@@ -96,5 +96,5 @@ jobs:
           })
 
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false

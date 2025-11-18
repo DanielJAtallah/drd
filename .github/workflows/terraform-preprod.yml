@@ -1,15 +1,15 @@
-name: 'Terraform - Preprod'
+name: 'Terraform - Dev'
 
 on:
   push:
     branches:
-      - main
+      - dev
     paths:
       - 'terraform/**'
-      - '.github/workflows/terraform-preprod.yml'
+      - '.github/workflows/terraform-dev.yml'
   pull_request:
     branches:
-      - main
+      - dev
     paths:
       - 'terraform/**'
   workflow_dispatch:
@@ -21,12 +21,12 @@ permissions:
 
 jobs:
   terraform:
-    name: 'Terraform Preprod'
+    name: 'Terraform Dev'
     runs-on: ubuntu-latest
-    environment: preprod
+    environment: development
     defaults:
       run:
-        working-directory: ./terraform/environments/preprod
+        working-directory: ./terraform/environments/dev
     
     steps:
     - name: Checkout
@@ -35,8 +35,8 @@ jobs:
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: ${{ secrets.PREPROD_WORKLOAD_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.PREPROD_SERVICE_ACCOUNT }}
+        workload_identity_provider: ${{ secrets.DEV_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.DEV_SERVICE_ACCOUNT }}
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
@@ -72,7 +72,7 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const output = `#### Terraform Preprod Environment 🚀
+          const output = `#### Terraform Dev Environment 🔧
           #### Format and Style 🖌\`${{ steps.fmt.outcome }}\`
           #### Initialization ⚙️\`${{ steps.init.outcome }}\`
           #### Validation 🤖\`${{ steps.validate.outcome }}\`
@@ -86,7 +86,7 @@ jobs:
 
           </details>
 
-          *Environment: Preprod | Pushed by: @${{ github.actor }}*`;
+          *Environment: Development | Pushed by: @${{ github.actor }}*`;
 
           github.rest.issues.createComment({
             issue_number: context.issue.number,
@@ -96,5 +96,5 @@ jobs:
           })
 
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false

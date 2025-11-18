@@ -1,33 +1,34 @@
 name: 'Terraform - Production'
 
 on:
+  push:
+    branches:
+      - prod
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-prod.yml'
+  pull_request:
+    branches:
+      - prod
+    paths:
+      - 'terraform/**'
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "apply" to confirm production deployment'
-        required: true
-        default: 'plan'
 
 permissions:
   contents: read
   id-token: write
+  pull-requests: write
 
 jobs:
   terraform:
     name: 'Terraform Production'
     runs-on: ubuntu-latest
-    environment: production
+    environment: production  # This triggers the required approval
     defaults:
       run:
         working-directory: ./terraform/environments/prod
     
     steps:
-    - name: Verify Confirmation
-      if: github.event.inputs.confirm != 'apply'
-      run: |
-        echo "::error::You must type 'apply' to deploy to production"
-        exit 1
-
     - name: Checkout
       uses: actions/checkout@v4
 
@@ -60,7 +61,41 @@ jobs:
     - name: Terraform Plan
       id: plan
       run: terraform plan -no-color -input=false
+      continue-on-error: true
+
+    - name: Comment PR with Plan
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      env:
+        PLAN: "${{ steps.plan.outputs.stdout }}"
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `#### Terraform Production Environment ⚠️
+          #### Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+          #### Initialization ⚙️\`${{ steps.init.outcome }}\`
+          #### Validation 🤖\`${{ steps.validate.outcome }}\`
+          #### Plan 📖\`${{ steps.plan.outcome }}\`
+
+          <details><summary>Show Plan</summary>
+
+          \`\`\`terraform
+          ${process.env.PLAN}
+          \`\`\`
+
+          </details>
+
+          *Environment: **PRODUCTION** | Pushed by: @${{ github.actor }}*
+          
+          ⚠️ **This will deploy to production after approval!**`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
 
     - name: Terraform Apply
-      if: github.event.inputs.confirm == 'apply'
+      if: github.ref == 'refs/heads/prod' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false
